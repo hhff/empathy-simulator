@@ -1,5 +1,5 @@
 //initialize all of our variables
-var app, base, concat, directory, gulp, gutil, hostname, path, refresh, sass, uglify, imagemin, cache, minifyCSS, del, connect;
+var app, base, concat, directory, gulp, gutil, hostname, path, refresh, sass, uglify, imagemin, cache, minifyCSS, del, connect, esnext, es6Modules, browserify;
 
 //load all of our dependencies
 //add more here if you want to include more libraries
@@ -13,6 +13,9 @@ cache       = require('gulp-cache');
 minifyCSS   = require('gulp-minify-css');
 connect     = require('gulp-connect');
 del         = require('del');
+esnext      = require('gulp-esnext');
+es6Modules  = require('gulp-es6-module-transpiler');
+browserify  = require('gulp-browserify');
 
 gulp.task('connect', function() {
   connect.server({
@@ -36,11 +39,11 @@ gulp.task('images-deploy', function() {
 });
 
 //compiling our Javascripts
-gulp.task('scripts', function() {
+gulp.task('vendor-scripts', function() {
     //this is where our dev JS scripts are
-    return gulp.src('app/scripts/src/**/*.js')
+    return gulp.src('app/scripts/src/vendor/*.js')
                 //this is the filename of the compressed version of our JS
-               .pipe(concat('app.js'))
+               .pipe(concat('vendor.js'))
                //catch errors
                .on('error', gutil.log)
                //compress :D
@@ -51,17 +54,30 @@ gulp.task('scripts', function() {
                .pipe(connect.reload());
 });
 
-//compiling our Javascripts for deployment
-gulp.task('scripts-deploy', function() {
+//compiling our Javascripts
+gulp.task('scripts', function() {
     //this is where our dev JS scripts are
-    return gulp.src('app/scripts/src/**/*.js')
-                //this is the filename of the compressed version of our JS
-               .pipe(concat('app.js'))
-               //compress :D
-               .pipe(uglify())
-               //where we will store our finalized, compressed script
-               .pipe(gulp.dest('dist/scripts'));
+    return gulp.src("app/scripts/src/lib/app.js")
+               .pipe(browserify())
+               .pipe(esnext())
+               .on('error', gutil.log)
+               // .pipe(uglify())
+               .pipe(gulp.dest('app/scripts'))
+               .pipe(connect.reload());
 });
+
+//compiling our Javascripts for deployment
+// gulp.task('scripts-deploy', function() {
+//     return gulp.src("app/scripts/src/init.js")
+//                .pipe(es6Modules({
+//                  type: "amd"
+//                }))
+//                .on('error', gutil.log)
+//                .pipe(concat('app.js'))
+//                .pipe(uglify())
+//                .pipe(gulp.dest('app/scripts'))
+//                .pipe(connect.reload());
+// });
 
 //compiling our SCSS files
 gulp.task('styles', function() {
@@ -139,7 +155,7 @@ gulp.task('clean', function() {
 //  startup the web server,
 //  start up livereload
 //  compress all scripts and SCSS files
-gulp.task('default', ['connect', 'scripts', 'styles'], function() {
+gulp.task('default', ['connect', 'scripts', 'vendor-scripts', 'styles'], function() {
     //a list of watchers, so it will watch all of the following files waiting for changes
     gulp.watch('app/scripts/src/**', ['scripts']);
     gulp.watch('app/styles/scss/**', ['styles']);
