@@ -10,13 +10,19 @@ class Camera {
     this.focalLength = focalLength || 0.8;
     this.fov = Math.PI * .4;
     this.range = Utils.MOBILE ? 8 : 14;
-    this.lightRange = 5;
+    this.lightRange = 1.75;
+    this.maxLightRange = 8;
     this.scale = (this.width + this.height) / 1200;
   }
 
   render(player, map) {
+    if(player.hasFlashlight && this.lightRange != 8) {
+      this.lightRange += 0.2;
+    }
 
-    var skybox = map.skybox;
+    var currentQuadrant = Utils.quadrant(player.x, player.y, map.size);
+    var skybox = map['skybox'+currentQuadrant];
+
     if(window.WHITE_SKYBOX_ENABLED){
       skybox = map.whiteSkybox;
     }
@@ -143,14 +149,17 @@ class Camera {
       var x = column / this.resolution - 0.5;
       var angle = Math.atan2(x, this.focalLength);
       var ray = map.cast(player, player.direction + angle, this.range);
-      this.drawColumn(column, ray, angle, map);
+      this.drawColumn(column, ray, angle, map, player);
     }
     this.ctx.restore();
   }
 
-  drawColumn(column, ray, angle, map) {
+  drawColumn(column, ray, angle, map, player) {
     var ctx = this.ctx;
-    var texture = map.wallTexture;
+
+    var currentQuadrant = Utils.quadrant(player.x, player.y, map.size);
+    var texture = map['wallTexture'+currentQuadrant];
+
     var left = Math.floor(column * this.spacing);
     var width = Math.ceil(this.spacing);
     var hit = -1;

@@ -1,0 +1,14 @@
+#system-messages {
+  position: fixed;
+  padding: 50px;
+
+
+  div {
+    color: black;
+    @extend %lydianmtstd;
+    font-size: 14px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    background-color: lavender;
+  }
+}

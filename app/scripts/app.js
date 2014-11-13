@@ -30,15 +30,21 @@ var $__Object$defineProperties = Object.defineProperties;
       this.focalLength = focalLength || 0.8;
       this.fov = Math.PI * .4;
       this.range = Utils.MOBILE ? 8 : 14;
-      this.lightRange = 5;
+      this.lightRange = 1.75;
+      this.maxLightRange = 8;
       this.scale = (this.width + this.height) / 1200;
     }
 
     $__Object$defineProperties(Camera.prototype, {
       render: {
         value: function(player, map) {
+          if(player.hasFlashlight && this.lightRange != 8) {
+            this.lightRange += 0.2;
+          }
 
-          var skybox = map.skybox;
+          var currentQuadrant = Utils.quadrant(player.x, player.y, map.size);
+          var skybox = map['skybox'+currentQuadrant];
+
           if(window.WHITE_SKYBOX_ENABLED){
             skybox = map.whiteSkybox;
           }
@@ -185,7 +191,7 @@ var $__Object$defineProperties = Object.defineProperties;
             var x = column / this.resolution - 0.5;
             var angle = Math.atan2(x, this.focalLength);
             var ray = map.cast(player, player.direction + angle, this.range);
-            this.drawColumn(column, ray, angle, map);
+            this.drawColumn(column, ray, angle, map, player);
           }
           this.ctx.restore();
         },
@@ -195,9 +201,12 @@ var $__Object$defineProperties = Object.defineProperties;
       },
 
       drawColumn: {
-        value: function(column, ray, angle, map) {
+        value: function(column, ray, angle, map, player) {
           var ctx = this.ctx;
-          var texture = map.wallTexture;
+
+          var currentQuadrant = Utils.quadrant(player.x, player.y, map.size);
+          var texture = map['wallTexture'+currentQuadrant];
+
           var left = Math.floor(column * this.spacing);
           var width = Math.ceil(this.spacing);
           var hit = -1;
@@ -322,7 +331,7 @@ var $__Object$defineProperties = Object.defineProperties;
   }();
 
   module.exports = Camera;
-},{"./utils":10}],3:[function(require,module,exports){
+},{"./utils":11}],3:[function(require,module,exports){
   var Controls = function() {
     "use strict";
 
@@ -413,6 +422,7 @@ Controls = require('./controls');
 Bitmap = require('./bitmap');
 Camera = require('./camera');
 EventBus = require('./event-bus');
+MessageQueue = require('./message-queue');
 GameLoop = require('./gameloop');
 
 // Start the Game Loop
@@ -422,18 +432,22 @@ var map = new Map(32);
 var controls = new Controls();
 var camera = new Camera(display, Utils.MOBILE ? 160 : 320, 0.8);
 var eventBus = new EventBus();
+var messageQueue = new MessageQueue();
 var loop = new GameLoop();
 
 loop.start(function frame(seconds) {
   map.update(seconds);
-  player.update(controls.states, map, seconds);
+  player.update(controls.states, map, seconds, messageQueue);
+  messageQueue.update();
   camera.render(player, map);
 });
 
+messageQueue.pushNotification('You can always learn more empathy', 'system', 500);
 
 // Load the Map
 var mapImage = new Image();
 var mapData = []
+
 mapImage.onload = function() {
   var decoder = document.createElement('canvas');
   decoder.width = mapImage.width
@@ -463,47 +477,109 @@ mapImage.onload = function() {
   //   texture: new Bitmap('assets/item-flashlight.png', 350, 800)
   // });
 
+
+  // Flash Light
+  // Map
+
+  // Abilities:
+    // Learn Empathy
+    // Disconnect
+
+  // Pickups
   map.addItem({
-    x: 28,
-    y: 25,
-    width: .5,
-    height: .25,
-    texture: new Bitmap('assets/item-technoboredom.png', 500, 250)
+    x: 11.5,
+    y: 25.5,
+    width: 0.8,
+    height: 1,
+    type: "pickup",
+    name: "freakout",
+    texture: new Bitmap('assets/pickup-freakout.png', 1024, 1024)
   });
 
   map.addItem({
-    x: 12,
-    y: 9,
-    width: .5,
-    height: .25,
-    texture: new Bitmap('assets/item-disconnect.png', 500, 250)
+    x: 11.5,
+    y: 11.5,
+    width: 0.8,
+    height: 1,
+    type: "pickup",
+    name: "lucid",
+    texture: new Bitmap('assets/pickup-lucid.png', 1024, 1024)
   });
 
   map.addItem({
-    x: 11,
-    y: 9,
-    width: .5,
-    height: .367,
-    texture: new Bitmap('assets/art-face.gif', 500, 367)
+    x: 3,
+    y: 30.5,
+    width: 0.8,
+    height: 1,
+    type: "pickup",
+    name: "flashlight",
+    texture: new Bitmap('assets/pickup-flashlight.png', 1024, 1024)
+  });
+
+  // Art
+  map.addItem({
+    x: 3,
+    y: 28,
+    width: 0.8,
+    height: 1,
+    type: "art",
+    texture: new Bitmap('assets/art-guru.png', 1024, 1024)
+  });
+
+  // Messages
+  map.addItem({
+    x: 29.5,
+    y: 26,
+    width: .8,
+    height: 1,
+    type: "message",
+    texture: new Bitmap('assets/message-welcome.png', 1024, 1024)
+  });
+
+
+  // Portals
+  map.addItem({
+    x: 16,
+    y: 30.5,
+    width: 0.8,
+    height: 1,
+    texture: new Bitmap('assets/portal.png', 1024, 1024),
+    type: "portal",
+    transition: "city"
   });
 
   map.addItem({
-    x: 30,
-    y: 30,
-    width: .35,
-    height: .8,
-    texture: new Bitmap('assets/item-helix.png', 350, 800),
-    track: 1,
+    x: 15.5,
+    y: 16,
+    width: 0.8,
+    height: 1,
+    texture: new Bitmap('assets/portal.png', 1024, 1024),
+    type: "portal",
+    transition: "wood"
+  });
+
+  // Tracks
+  map.addItem({
+    x: 23.5,
+    y: 23.5,
+    width: .8,
+    height: 1,
+    texture: new Bitmap('assets/item-helix.png', 1024, 1024),
+    audio: null,
+    type: "track",
+    trackName: "Helix",
     playing: true
   });
 
   map.addItem({
-    x: 1,
-    y: 1,
-    width: .35,
-    height: .8,
-    texture: new Bitmap('assets/item-tva.png', 350, 800),
-    track: 2,
+    x: 8.5,
+    y: 8.5,
+    width: .8,
+    height: 1,
+    texture: new Bitmap('assets/item-tva.png', 1024, 1024),
+    audio: null,
+    type: "track",
+    trackName: "Tva Fontainer",
     playing: false
   });
 
@@ -531,6 +607,11 @@ eventBus.on('gameLoaded', window, gameLoaded);
 mapImage.src = "assets/map.png";
 
 
+
+
+
+
+
 // http://www.html5rocks.com/en/tutorials/webaudio/games/#toc-3d
 
 // Soundcloud Stuff
@@ -543,7 +624,6 @@ SC.initialize({
 SC.stream("/tracks/159679823", function(sound){
   console.log('Track 1 Ready.');
   window.TRACK_ONE = sound;
-  window.TRACK_ONE.play();
 });
 
 SC.stream("/tracks/159679816", function(sound){
@@ -568,7 +648,7 @@ SC.stream("/tracks/83743704", function(sound){
 
 
 
-},{"./bitmap":1,"./camera":2,"./controls":3,"./event-bus":4,"./gameloop":6,"./map":8,"./player":9,"./utils":10}],6:[function(require,module,exports){
+},{"./bitmap":1,"./camera":2,"./controls":3,"./event-bus":4,"./gameloop":6,"./map":8,"./message-queue":9,"./player":10,"./utils":11}],6:[function(require,module,exports){
   var GameLoop = function() {
     "use strict";
 
@@ -630,9 +710,23 @@ SC.stream("/tracks/83743704", function(sound){
     function Map(size) {
       this.size = size;
       this.wallGrid = new Uint8Array(size * size);
-      this.skybox = new Bitmap('assets/skybox.jpg', 2844, 914);
+
       this.whiteSkybox = new Bitmap('assets/skybox-white.jpg', 2844, 914);
-      this.wallTexture = new Bitmap('assets/wall_texture.jpg', 1024, 1024);
+      this.skybox0 = new Bitmap('assets/skybox.jpg', 2844, 914);
+      this.skybox1 = new Bitmap('assets/skybox-tiles.jpg', 2844, 914);
+      this.skybox2 = new Bitmap('assets/skybox-city.jpg', 2844, 914);
+      this.skybox3 = new Bitmap('assets/skybox.jpg', 2844, 914);
+
+      // Ideas
+
+      // PNG Walls look cool
+      // Neon Everything
+
+      this.wallTexture0 = new Bitmap('assets/wall_texture_wood.jpg', 1024, 1024);
+      this.wallTexture1 = new Bitmap('assets/wall_texture_tile.jpg', 1024, 1024);
+      this.wallTexture2 = new Bitmap('assets/wall_texture_brick.jpg', 1024, 1024);
+      this.wallTexture3 = new Bitmap('assets/wall_texture_stone.jpg', 1024, 1024);
+
       this.light = 0;
       this.items = new Array();
     }
@@ -654,6 +748,40 @@ SC.stream("/tracks/83743704", function(sound){
         value: function() {
           for (var i = 0; i < this.size * this.size; i++) {
             this.wallGrid[i] = Math.random() < 0.3 ? 1 : 0;
+          }
+        },
+
+        enumerable: false,
+        writable: true
+      },
+
+      addWallAt: {
+        value: function(x, y) {
+          var gridIndex = (y * this.size) + x
+
+          if(this.wallGrid[gridIndex] == 0) {
+            this.wallGrid[gridIndex] = 1
+            return true
+          }else{
+            console.log('there is a wall there already')
+            return false
+          }
+        },
+
+        enumerable: false,
+        writable: true
+      },
+
+      removeWallAt: {
+        value: function(x, y) {
+          var gridIndex = (y * this.size) + x
+
+          if(this.wallGrid[gridIndex] == 1) {
+            this.wallGrid[gridIndex] = 0
+            return true
+          }else{
+            console.log('there is no wall to remove')
+            return false
           }
         },
 
@@ -744,6 +872,68 @@ SC.stream("/tracks/83743704", function(sound){
 
   module.exports = Map;
 },{"./bitmap":1,"./item":7}],9:[function(require,module,exports){
+  var MessageQueue = function() {
+    "use strict";
+
+    function MessageQueue() {
+      this.messages = {
+                        system: []
+                      };
+    }
+
+    $__Object$defineProperties(MessageQueue.prototype, {
+      pushNotification: {
+        value: function(message, type, timer) {
+          this.messages[type].push({message: message, timeRemaining: timer});
+        },
+
+        enumerable: false,
+        writable: true
+      },
+
+      update: {
+        value: function() {
+          for (var queueName in this.messages) {
+            this.buildDOM(queueName, this.messages[queueName]);
+          }
+        },
+
+        enumerable: false,
+        writable: true
+      },
+
+      buildDOM: {
+        value: function(queueName, queue) {
+          var container = document.getElementById(queueName+"-messages");
+
+          while (container.hasChildNodes()){
+            container.removeChild(container.lastChild);
+          }
+
+          for (var index in queue) {
+            var messageData = queue[index];
+            var text = messageData['message'];
+            var message = document.createElement("div");
+            message.textContent = text
+            container.appendChild(message);
+            messageData['timeRemaining']--
+
+            if (messageData['timeRemaining'] <= 0){
+              queue.splice(index, 1);
+            }
+          }
+        },
+
+        enumerable: false,
+        writable: true
+      }
+    });
+
+    return MessageQueue;
+  }();
+
+  module.exports = MessageQueue;
+},{}],10:[function(require,module,exports){
   Utils = require('./utils');
 
   var Player = function() {
@@ -753,6 +943,7 @@ SC.stream("/tracks/83743704", function(sound){
       this.x = x;
       this.y = y;
       this.direction = direction;
+      this.hasFlashlight = false;
       this.paces = 0;
     }
 
@@ -780,11 +971,18 @@ SC.stream("/tracks/83743704", function(sound){
       },
 
       update: {
-        value: function(controls, map, seconds) {
+        value: function(controls, map, seconds, messageQueue) {
           if (controls.left) this.rotate(-Math.PI * seconds);
           if (controls.right) this.rotate(Math.PI * seconds);
           if (controls.forward) this.walk(3 * seconds, map);
           if (controls.backward) this.walk(-3 * seconds, map);
+
+          if(Utils.quadrant(this.x, this.y, map.size) == 2) {
+            window.RAIN_ENABLED = true
+          }else {
+            window.RAIN_ENABLED = false
+          }
+
 
           for (var i = 0; i < map.items.length; i++) {
             var item = map.items[i];
@@ -793,33 +991,104 @@ SC.stream("/tracks/83743704", function(sound){
             var distY = item.y - this.y;
             var distanceFromPlayer = Math.sqrt( Math.pow( distX, 2) + Math.pow( distY, 2) );
 
+            // @@@ ITEMS @@@ //
 
-            // For "Track" Items only
-            if (item.track) {
-              var track;
-              if(item.track == 1){
-                track = window.TRACK_ONE;
-              } else if(item.track == 2){
-                track = window.TRACK_TWO;
+
+            // HANDLE NON COLLISION CALS HERE
+
+            if (item.type == "track") {
+
+              switch(item.trackName) {
+                case "Helix":
+                  item.audio = window.TRACK_ONE;
+                  break;
+                case "Tva Fontainer":
+                  item.audio = window.TRACK_TWO;
+                  break;
+
               }
+              if (item.audio) {
+                item.audio.setVolume(distanceFromPlayer.rangeMap(0, 17, 100, 0));
+              }
+            }
 
-              if (track){
-                track.setVolume(distanceFromPlayer.rangeMap(0, 38, 100, 0));
 
-                if(distanceFromPlayer < 0.1 && !track.playState) {
-                  track.play();
-                  console.log('track started');
+
+            // ON COLISION
+            if(distanceFromPlayer < 0.2) {
+              // Portals
+              if (item.type == "portal") {
+                switch(item.transition) {
+                  case "city":
+                    if(map.addWallAt(17, 30)){
+                      messageQueue.pushNotification("It is raining in the city", 'system', 300);
+                    }
+                    break;
+                  case "wood":
+                    console.log("wood!")
+                    break;
                 }
               }
 
+              // Pickups
+              if (item.type == "pickup") {
+                switch(item.name) {
+                  case "flashlight":
+                    this.hasFlashlight = true;
+                    map.removeItem(i);
+                    messageQueue.pushNotification("You have found a flashlight;", 'system', 300);
+                    break;
+                  case "map":
+                    console.log("MAP!")
+                    break;
+                  case "freakout":
+                    window.FREAKOUT_ENABLED = true;
+                    messageQueue.pushNotification("You are feeling nautious.", 'system', 300);
+
+                    map.removeItem(i);
+
+                    window.setTimeout(function(){
+                      messageQueue.pushNotification("You are feeling better now.", 'system', 300);
+                      window.FREAKOUT_ENABLED = false;
+                    }, 24000)
+                    break;
+
+                  case "lucid":
+                    window.WALL_TEXTURE_ENABLED = false;
+                    window.WHITE_SKYBOX_ENABLED = true;
+
+                    messageQueue.pushNotification("Your thoughts are very clear.", 'system', 300);
+
+                    map.removeItem(i);
+
+                    window.setTimeout(function(){
+                      messageQueue.pushNotification("Your senses have dulled.", 'system', 300);
+                      window.WALL_TEXTURE_ENABLED = true;
+                      window.WHITE_SKYBOX_ENABLED = false;
+                    }, 15000)
+                    break;
+                }
+              }
+
+              // Messages
+              if (item.type == "message") {
+                map.removeItem(i);
+              }
+
+              // Tracks
+              if (item.type == "track") {
+                if(!item.audio.playState) {
+                  item.audio.play();
+                  messageQueue.pushNotification(item.trackName+" Has started playing", 'system', 300);
+
+                  if (map.removeWallAt(22, 21)) {
+                    map.addWallAt(28, 21);
+                    messageQueue.pushNotification('A door has been opened;', 'system', 300);
+                  }
+                }
+              }
             }
 
-            // For Regular Items
-            if(distanceFromPlayer < 0.1) {
-              console.log('collision')
-              // TODO - Trigger Something.
-              // map.removeItem(i);
-            }
           }
 
           if (window.LOG_POSITION) {
@@ -836,9 +1105,28 @@ SC.stream("/tracks/83743704", function(sound){
   }();
 
   module.exports = Player;
-},{"./utils":10}],10:[function(require,module,exports){
+},{"./utils":11}],11:[function(require,module,exports){
 module.exports = {
   CIRCLE: Math.PI * 2,
-  MOBILE: /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)
+  MOBILE: /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent),
+
+  quadrant: function quadrant(x, y, mapSize) {
+    var xDif = (x / mapSize);
+    var yDif = (y / mapSize);
+
+    if(xDif >= 0.5 ) {
+      if( yDif >= 0.5 )
+        return 3;
+      else
+        return 1;
+    }
+    else {
+      if( yDif >= 0.5 )
+        return 2;
+      else
+        return 0;
+    }
+  }
+
 };
 },{}]},{},[5]);

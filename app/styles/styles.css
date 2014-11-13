@@ -43,3 +43,22 @@ a img {
 
 b, i {
   display: none; }
+
+@font-face {
+  font-family: lydianmtstd;
+  src: url("../fonts/lydian/lydianmtstd.eot");
+  src: url("../fonts/lydian/lydianmtstd.eot?#iefix") format("embedded-opentype"), url("../fonts/lydian/lydianmtstd.woff") format("woff"), url("../fonts/lydian/lydianmtstd.ttf") format("truetype"), url("../fonts/lydian/lydianmtstd.svg#lydianmtstd") format("svg"); }
+
+#system-messages div {
+  font-family: lydianmtstd;
+  font-weight: normal; }
+
+#system-messages {
+  position: fixed;
+  padding: 50px; }
+  #system-messages div {
+    color: black;
+    font-size: 14px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    background-color: lavender; }

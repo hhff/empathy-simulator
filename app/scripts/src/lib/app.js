@@ -17,6 +17,7 @@ Controls = require('./controls');
 Bitmap = require('./bitmap');
 Camera = require('./camera');
 EventBus = require('./event-bus');
+MessageQueue = require('./message-queue');
 GameLoop = require('./gameloop');
 
 // Start the Game Loop
@@ -26,18 +27,22 @@ var map = new Map(32);
 var controls = new Controls();
 var camera = new Camera(display, Utils.MOBILE ? 160 : 320, 0.8);
 var eventBus = new EventBus();
+var messageQueue = new MessageQueue();
 var loop = new GameLoop();
 
 loop.start(function frame(seconds) {
   map.update(seconds);
-  player.update(controls.states, map, seconds);
+  player.update(controls.states, map, seconds, messageQueue);
+  messageQueue.update();
   camera.render(player, map);
 });
 
+messageQueue.pushNotification('You can always learn more empathy', 'system', 500);
 
 // Load the Map
 var mapImage = new Image();
 var mapData = []
+
 mapImage.onload = function() {
   var decoder = document.createElement('canvas');
   decoder.width = mapImage.width
@@ -67,47 +72,109 @@ mapImage.onload = function() {
   //   texture: new Bitmap('assets/item-flashlight.png', 350, 800)
   // });
 
+
+  // Flash Light
+  // Map
+
+  // Abilities:
+    // Learn Empathy
+    // Disconnect
+
+  // Pickups
   map.addItem({
-    x: 28,
-    y: 25,
-    width: .5,
-    height: .25,
-    texture: new Bitmap('assets/item-technoboredom.png', 500, 250)
+    x: 11.5,
+    y: 25.5,
+    width: 0.8,
+    height: 1,
+    type: "pickup",
+    name: "freakout",
+    texture: new Bitmap('assets/pickup-freakout.png', 1024, 1024)
   });
 
   map.addItem({
-    x: 12,
-    y: 9,
-    width: .5,
-    height: .25,
-    texture: new Bitmap('assets/item-disconnect.png', 500, 250)
+    x: 11.5,
+    y: 11.5,
+    width: 0.8,
+    height: 1,
+    type: "pickup",
+    name: "lucid",
+    texture: new Bitmap('assets/pickup-lucid.png', 1024, 1024)
   });
 
   map.addItem({
-    x: 11,
-    y: 9,
-    width: .5,
-    height: .367,
-    texture: new Bitmap('assets/art-face.gif', 500, 367)
+    x: 3,
+    y: 30.5,
+    width: 0.8,
+    height: 1,
+    type: "pickup",
+    name: "flashlight",
+    texture: new Bitmap('assets/pickup-flashlight.png', 1024, 1024)
+  });
+
+  // Art
+  map.addItem({
+    x: 3,
+    y: 28,
+    width: 0.8,
+    height: 1,
+    type: "art",
+    texture: new Bitmap('assets/art-guru.png', 1024, 1024)
+  });
+
+  // Messages
+  map.addItem({
+    x: 29.5,
+    y: 26,
+    width: .8,
+    height: 1,
+    type: "message",
+    texture: new Bitmap('assets/message-welcome.png', 1024, 1024)
+  });
+
+
+  // Portals
+  map.addItem({
+    x: 16,
+    y: 30.5,
+    width: 0.8,
+    height: 1,
+    texture: new Bitmap('assets/portal.png', 1024, 1024),
+    type: "portal",
+    transition: "city"
   });
 
   map.addItem({
-    x: 30,
-    y: 30,
-    width: .35,
-    height: .8,
-    texture: new Bitmap('assets/item-helix.png', 350, 800),
-    track: 1,
+    x: 15.5,
+    y: 16,
+    width: 0.8,
+    height: 1,
+    texture: new Bitmap('assets/portal.png', 1024, 1024),
+    type: "portal",
+    transition: "wood"
+  });
+
+  // Tracks
+  map.addItem({
+    x: 23.5,
+    y: 23.5,
+    width: .8,
+    height: 1,
+    texture: new Bitmap('assets/item-helix.png', 1024, 1024),
+    audio: null,
+    type: "track",
+    trackName: "Helix",
     playing: true
   });
 
   map.addItem({
-    x: 1,
-    y: 1,
-    width: .35,
-    height: .8,
-    texture: new Bitmap('assets/item-tva.png', 350, 800),
-    track: 2,
+    x: 8.5,
+    y: 8.5,
+    width: .8,
+    height: 1,
+    texture: new Bitmap('assets/item-tva.png', 1024, 1024),
+    audio: null,
+    type: "track",
+    trackName: "Tva Fontainer",
     playing: false
   });
 
@@ -135,6 +202,11 @@ eventBus.on('gameLoaded', window, gameLoaded);
 mapImage.src = "assets/map.png";
 
 
+
+
+
+
+
 // http://www.html5rocks.com/en/tutorials/webaudio/games/#toc-3d
 
 // Soundcloud Stuff
@@ -147,7 +219,6 @@ SC.initialize({
 SC.stream("/tracks/159679823", function(sound){
   console.log('Track 1 Ready.');
   window.TRACK_ONE = sound;
-  window.TRACK_ONE.play();
 });
 
 SC.stream("/tracks/159679816", function(sound){

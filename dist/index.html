@@ -12,8 +12,8 @@
         <!-- Place favicon.ico and apple-touch-icon.png in the root directory -->
         <link rel="stylesheet" href="styles/styles.css">
     </head>
-    <body>
-
+    <body style='background: #000; margin: 0; padding: 0; width: 100%; height: 100%;'>
+        <canvas id='display' width='1' height='1' style='width: 100%; height: 100%;' />
         <!-- Google Analytics: change UA-XXXXX-X to be your site's ID. -->
         <script>
             (function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=
@@ -24,6 +24,7 @@
             ga('create','UA-XXXXX-X');ga('send','pageview');
         </script>
 
+        <script src="scripts/vendor.js"></script>
         <script src="scripts/app.js"></script>
     </body>
 </html>

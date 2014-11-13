@@ -66,19 +66,6 @@ gulp.task('scripts', function() {
                .pipe(connect.reload());
 });
 
-//compiling our Javascripts for deployment
-// gulp.task('scripts-deploy', function() {
-//     return gulp.src("app/scripts/src/init.js")
-//                .pipe(es6Modules({
-//                  type: "amd"
-//                }))
-//                .on('error', gutil.log)
-//                .pipe(concat('app.js'))
-//                .pipe(uglify())
-//                .pipe(gulp.dest('app/scripts'))
-//                .pipe(connect.reload());
-// });
-
 //compiling our SCSS files
 gulp.task('styles', function() {
     //the initializer / master SCSS file, which will just be a file that imports everything
@@ -165,5 +152,5 @@ gulp.task('default', ['connect', 'scripts', 'vendor-scripts', 'styles'], functio
 
 //this is our deployment task, it will set everything for deployment-ready files
 gulp.task('deploy', ['clean'], function () {
-  gulp.start('scripts-deploy', 'styles-deploy', 'html-deploy', 'images-deploy');
+  gulp.start('vendor-scripts', 'scripts', 'styles-deploy', 'html-deploy', 'images-deploy');
 });
