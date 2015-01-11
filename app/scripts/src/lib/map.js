@@ -15,7 +15,6 @@ class Map {
     // Ideas
 
     // PNG Walls look cool
-    // Neon Everything
 
     this.wallTexture0 = new Bitmap('assets/wall_texture_wood.jpg', 1024, 1024);
     this.wallTexture1 = new Bitmap('assets/wall_texture_tile.jpg', 1024, 1024);
