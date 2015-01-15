@@ -388,6 +388,7 @@ var $__Object$defineProperties = Object.defineProperties;
 
       onKey: {
         value: function(val, e) {
+          this.present = val;
           var state = this.codes[e.keyCode];
           if (typeof state === 'undefined') return;
           this.states[state] = val;
