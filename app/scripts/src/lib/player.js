@@ -23,9 +23,9 @@ class Player {
   }
 
   update(controls, map, seconds, messageQueue) {
-    if (controls.left) this.rotate(-Math.PI * seconds);
-    if (controls.right) this.rotate(Math.PI * seconds);
-    if (controls.forward) this.walk(3 * seconds, map);
+    if (controls.left) this.rotate(-Math.PI * seconds * controls.left);
+    if (controls.right) this.rotate(Math.PI * seconds * controls.right);
+    if (controls.forward) this.walk(3 * seconds * controls.forward, map);
     if (controls.backward) this.walk(-3 * seconds, map);
 
     if(Utils.quadrant(this.x, this.y, map.size) == 2) {
@@ -33,7 +33,6 @@ class Player {
     }else {
       window.RAIN_ENABLED = false
     }
-
 
     for (var i = 0; i < map.items.length; i++) {
       var item = map.items[i];
@@ -66,18 +65,24 @@ class Player {
 
 
       // ON COLISION
-      if(distanceFromPlayer < 0.2) {
+      if(distanceFromPlayer < 0.8) {
         // Portals
         if (item.type == "portal") {
           switch(item.transition) {
             case "city":
-              if(map.addWallAt(17, 30)){
-                messageQueue.pushNotification("It is raining in the city", 'system', 300);
+              if(map.addWallAt(17, 28)){
+                messageQueue.pushNotification("It is raining in the city;", 'system', 300);
               }
               break;
             case "wood":
-              console.log("wood!")
+              if(map.addWallAt(15, 17)){
+                messageQueue.pushNotification("The sky here is relaxing;", 'system', 300);
+              }
               break;
+            case "jungle":
+              if(map.addWallAt(13, 1)){
+                messageQueue.pushNotification("You need to concentrate now;", 'system', 300);
+              }
           }
         }
 
@@ -87,16 +92,23 @@ class Player {
             case "flashlight":
               this.hasFlashlight = true;
               map.removeItem(i);
-              messageQueue.pushNotification("You have found a flashlight;", 'system', 300);
+              if(map.addWallAt(20, 21)){
+                messageQueue.pushNotification("You have found a flashlight;", 'system', 300);
+              }
               break;
             case "map":
-              console.log("MAP!")
+              window.MAP_ENABLED = true;
+              map.removeItem(i);
+              if(map.addWallAt(3, 11)){
+                messageQueue.pushNotification("You have found a map;", 'system', 300);
+              }
               break;
             case "freakout":
               window.FREAKOUT_ENABLED = true;
               messageQueue.pushNotification("You are feeling nautious.", 'system', 300);
 
               map.removeItem(i);
+              map.addWallAt(5, 26)
 
               window.setTimeout(function(){
                 messageQueue.pushNotification("You are feeling better now.", 'system', 300);
@@ -105,7 +117,7 @@ class Player {
               break;
 
             case "lucid":
-              window.WALL_TEXTURE_ENABLED = false;
+              // window.WALL_TEXTURE_ENABLED = false;
               window.WHITE_SKYBOX_ENABLED = true;
 
               messageQueue.pushNotification("Your thoughts are very clear.", 'system', 300);
@@ -114,7 +126,7 @@ class Player {
 
               window.setTimeout(function(){
                 messageQueue.pushNotification("Your senses have dulled.", 'system', 300);
-                window.WALL_TEXTURE_ENABLED = true;
+                // window.WALL_TEXTURE_ENABLED = true;
                 window.WHITE_SKYBOX_ENABLED = false;
               }, 15000)
               break;
@@ -124,7 +136,27 @@ class Player {
         // Messages
         if (item.type == "message") {
           map.removeItem(i);
+          map.addWallAt(28,13)
+          window.GAME_OVER = true;
         }
+
+        if (item.type == "hand") {
+          map.removeItem(i);
+        }
+
+        if (item.type == "last-hand") {
+          map.removeItem(i);
+          map.removeWallAt(17, 22)
+          map.removeWallAt(18, 22)
+          map.addWallAt(19,21)
+          messageQueue.pushNotification('You came here for no reason;', 'system', 300);
+          messageQueue.pushNotification('This was a waste of your time;', 'system', 300);
+        }
+
+        if (item.type == "sprite") {
+          map.removeItem(i);
+        }
+
 
         // Tracks
         if (item.type == "track") {

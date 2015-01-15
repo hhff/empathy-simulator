@@ -30,15 +30,15 @@ var $__Object$defineProperties = Object.defineProperties;
       this.focalLength = focalLength || 0.8;
       this.fov = Math.PI * .4;
       this.range = Utils.MOBILE ? 8 : 14;
-      this.lightRange = 1.75;
-      this.maxLightRange = 8;
+      this.lightRange = 2.8;
+      this.maxLightRange = 6;
       this.scale = (this.width + this.height) / 1200;
     }
 
     $__Object$defineProperties(Camera.prototype, {
       render: {
         value: function(player, map) {
-          if(player.hasFlashlight && this.lightRange != 8) {
+          if(player.hasFlashlight && this.lightRange < 6.8) {
             this.lightRange += 0.2;
           }
 
@@ -138,16 +138,19 @@ var $__Object$defineProperties = Object.defineProperties;
           var sprite;
           var spriteIsInColumn;
           var textureX;
+          var playerQuadrant = Utils.quadrant(player.x, player.y, map.size);
 
           for(var i = 0; i < sprites.length; i++){
             sprite = sprites[i];
-            spriteIsInColumn =  left > sprite.render.cameraXOffset - ( sprite.render.width / 2 ) && left < sprite.render.cameraXOffset + ( sprite.render.width / 2 );
+            var spriteQuadrant = Utils.quadrant(sprite.x, sprite.y, map.size);
 
-            if(spriteIsInColumn) {
+            spriteIsInColumn = left > sprite.render.cameraXOffset - ( sprite.render.width / 2 ) && left < sprite.render.cameraXOffset + ( sprite.render.width / 2 );
+            var spriteIsInPlayerQuadrant = playerQuadrant == spriteQuadrant;
 
+            if(spriteIsInColumn && spriteIsInPlayerQuadrant) {
               textureX = Math.floor( sprite.texture.width / sprite.render.numColumns * ( column - sprite.render.firstColumn ) );
               ctx.fillStyle = 'black';
-              ctx.globalAlpha = 1;
+              ctx.globalAlpha = sprite.distanceFromPlayer.rangeMap( 4, 1, 0, 1);
 
               var brightness = Math.max(sprite.distanceFromPlayer / this.lightRange - map.light, 0) * 100;
               sprite.texture.image.style.webkitFilter = 'brightness(' + brightness + '%)';
@@ -216,9 +219,6 @@ var $__Object$defineProperties = Object.defineProperties;
           for (var s = ray.length - 1; s >= 0; s--) {
             var step = ray[s];
 
-            var rainDrops = Math.pow(Math.random(), 3) * s;
-            var rain = (rainDrops > 0) && this.project(0.1, angle, step.distance);
-
             if (s === hit) {
               var textureX = Math.floor(texture.width * step.offset);
               var wall = this.project(step.height, angle, step.distance);
@@ -237,6 +237,8 @@ var $__Object$defineProperties = Object.defineProperties;
             ctx.fillStyle = '#ffffff';
             ctx.globalAlpha = 0.15;
 
+            var rainDrops = Math.pow(Math.random(), 3) * s;
+            var rain = (rainDrops > 0) && this.project(0.1, angle, step.distance);
             if(window.RAIN_ENABLED) {
               while (--rainDrops > 0) ctx.fillRect(left, Math.random() * rain.top, 1, rain.height);
             }
@@ -297,7 +299,7 @@ var $__Object$defineProperties = Object.defineProperties;
           // Draw Items on Map
           ctx.save();
           for (var i = 0; i < map.items.length; i++){
-            if(map.items[i]){
+            if(map.items[i] && map.items[i].showOnMap){
               ctx.fillStyle = map.items[i].color || 'blue';
               ctx.globalAlpha = .8;
               ctx.fillRect(x + (blockWidth * map.items[i].x) + blockWidth * .25, y + (blockHeight * map.items[i].y) + blockWidth * .25, blockWidth * .5, blockHeight * .5);
@@ -331,18 +333,59 @@ var $__Object$defineProperties = Object.defineProperties;
   }();
 
   module.exports = Camera;
-},{"./utils":11}],3:[function(require,module,exports){
+},{"./utils":12}],3:[function(require,module,exports){
   var Controls = function() {
     "use strict";
 
     function Controls() {
       this.codes  = { 37: 'left', 39: 'right', 38: 'forward', 40: 'backward' };
       this.states = { 'left': false, 'right': false, 'forward': false, 'backward': false };
-      document.addEventListener('keydown', this.onKey.bind(this, true), false);
+      this.present = false;
+      this.bothHands = false;
+      this.doublePinch = false;
+
+      document.addEventListener('keydown', this.onKey.bind(this, 1), false);
       document.addEventListener('keyup', this.onKey.bind(this, false), false);
+
+      document.addEventListener('handStream', this.updateHand.bind(this));
     }
 
     $__Object$defineProperties(Controls.prototype, {
+      updateHand: {
+        value: function(e) {
+          var handState = e.detail;
+
+          this.bothHands = handState.bothHands;
+          this.doublePinch = handState.doublePinch;
+
+
+          if (handState.present) {
+            this.present = true;
+            this.states.left = Math.max(handState.x.rangeMap(-30, -200, 0, 1), handState.angle.rangeMap(-15, -120, 0, 1), handState.roll.rangeMap(20, 200, 0, 1));
+            this.states.right = Math.max(handState.x.rangeMap(30, 200, 0, 1), handState.angle.rangeMap(15, 120, 0, 1), handState.roll.rangeMap(-20, -200, 0, 1));
+
+            if (handState.pitch < 65) {
+              this.states.forward = handState.grip.rangeMap(0.6, 1.2, 0, 1);
+              this.states.backward = false;
+            } else {
+              this.states.backward = handState.grip.rangeMap(0.6, 1.2, 0, 1);
+              this.states.forward = false;
+            }
+            // this.states.forward = handState.grip.rangeMap(0.6, 1.2, 0, 1);
+            // this.states.backward = handState.pitch.rangeMap(0, 120, 0, 1);
+
+          } else {
+            this.states.left = false;
+            this.states.right = false;
+            this.states.forward = false;
+            this.states.backward = false;
+          }
+        },
+
+        enumerable: false,
+        writable: true
+      },
+
       onKey: {
         value: function(val, e) {
           var state = this.codes[e.keyCode];
@@ -405,14 +448,33 @@ var $__Object$defineProperties = Object.defineProperties;
 },{}],5:[function(require,module,exports){
 // Vendor Libs Modernizr, Soundcloud, Firebase
 
+// Add Range Map
+Number.prototype.rangeMap = function ( in_min , in_max , out_min , out_max ) {
+  number = ( this - in_min ) * ( out_max - out_min ) / ( in_max - in_min ) + out_min;
+  if(number < 0){
+    number = 0
+  }
+
+  if(number > out_max) {
+    number = out_max
+  }
+  return number;
+}
+
 // Game Variables
+window.GAME_STARTED = false;
+
 window.LIGHTING_ENABLED = false;
 window.RAIN_ENABLED = false;
 window.FREAKOUT_ENABLED = false;
-window.MAP_ENABLED = true;
+window.MAP_ENABLED = false;
 window.WALL_TEXTURE_ENABLED = true;
 window.WHITE_SKYBOX_ENABLED = false;
 window.LOG_POSITION = false;
+window.GAME_OVER = false;
+
+window.IDLE_TIMER = 1200;
+
 
 // Import Libraries
 Utils = require('./utils');
@@ -428,189 +490,484 @@ GameLoop = require('./gameloop');
 // Start the Game Loop
 var display = document.getElementById('display');
 var player = new Player(30.5, 30.5, Math.PI * 1.25);
-var map = new Map(32);
-var controls = new Controls();
+window.map = new Map(32);
+window.controls = new Controls();
 var camera = new Camera(display, Utils.MOBILE ? 160 : 320, 0.8);
 var eventBus = new EventBus();
 var messageQueue = new MessageQueue();
 var loop = new GameLoop();
 
+startGame = function() {
+  startScreen.className = "game-started";
+  display.className = "game-started";
+  window.GAME_STARTED = true;
+
+  messageQueue.pushNotification('You can always learn more empathy', 'system', 500);
+
+  // Load the Map
+  var mapImage = new Image();
+  var mapData = []
+
+  mapImage.onload = function() {
+    var decoder = document.createElement('canvas');
+    decoder.width = mapImage.width
+    decoder.height = mapImage.height
+
+    if (decoder.height != decoder.width) {
+      throw new Error('map.png is not square.  Please use a square image.')
+    }
+
+    var context = decoder.getContext('2d');
+    context.drawImage(mapImage, 0, 0);
+    var imageData = context.getImageData(0, 0, decoder.width, decoder.height);
+
+    for (var i = 0; i < imageData.data.length/4; i++) {
+      mapData[i] = imageData.data[(i*4)+3] > 100 ? 1 : 0;
+    }
+
+    for (var i = 0; i < mapData.length; i++) {
+      map.wallGrid[i] = mapData[i]
+    }
+
+
+    // Pickups
+    map.addItem({
+      x: 7.5,
+      y: 26.5,
+      width: 0.8,
+      height: 1,
+      type: "pickup",
+      name: "freakout",
+      showOnMap: true,
+      texture: new Bitmap('assets/pickup-freakout.png', 1024, 1024)
+    });
+
+    map.addItem({
+      x: 4.5,
+      y: 8,
+      width: 0.8,
+      height: 1,
+      type: "pickup",
+      name: "lucid",
+      showOnMap: true,
+      texture: new Bitmap('assets/pickup-lucid.png', 1024, 1024)
+    });
+
+    map.addItem({
+      x: 18.5,
+      y: 21.5,
+      width: 0.8,
+      height: 1,
+      type: "pickup",
+      name: "flashlight",
+      showOnMap: true,
+      texture: new Bitmap('assets/pickup-flashlight.png', 1024, 1024)
+    });
+
+    // Messages
+    map.addItem({
+      x: 5,
+      y: 11.5,
+      width: .8,
+      height: 1,
+      type: "pickup",
+      name: "map",
+      showOnMap: false,
+      texture: new Bitmap('assets/pickup-map.png', 1024, 1024)
+    });
+
+
+    // Art
+    map.addItem({
+      x: 9.5,
+      y: 14.5,
+      width: 0.8,
+      height: 1,
+      type: "art",
+      showOnMap: false,
+      texture: new Bitmap('assets/art-guru.png', 1024, 1024)
+    });
+
+    map.addItem({
+      x: 23.5,
+      y: 27.5,
+      width: 0.8,
+      height: 1,
+      type: "art",
+      showOnMap: false,
+      texture: new Bitmap('assets/art-face.gif', 500, 367)
+    });
+
+    map.addItem({
+      x: 20,
+      y: 18,
+      width: 0.8,
+      height: 1,
+      type: "hand",
+      showOnMap: false,
+      texture: new Bitmap('assets/hand.gif', 500, 500)
+    });
+
+    map.addItem({
+      x: 21,
+      y: 18,
+      width: 0.8,
+      height: 1,
+      type: "hand",
+      showOnMap: false,
+      texture: new Bitmap('assets/hand.gif', 500, 500)
+    });
+
+    map.addItem({
+      x: 22,
+      y: 18,
+      width: 0.8,
+      height: 1,
+      type: "hand",
+      showOnMap: false,
+      texture: new Bitmap('assets/hand.gif', 500, 500)
+    });
+
+    map.addItem({
+      x: 23,
+      y: 18,
+      width: 0.8,
+      height: 1,
+      type: "hand",
+      showOnMap: false,
+      texture: new Bitmap('assets/hand.gif', 500, 500)
+    });
+
+    map.addItem({
+      x: 24,
+      y: 18,
+      width: 0.8,
+      height: 1,
+      type: "hand",
+      showOnMap: false,
+      texture: new Bitmap('assets/hand.gif', 500, 500)
+    });
+
+
+    map.addItem({
+      x: 25,
+      y: 18,
+      width: 0.8,
+      height: 1,
+      type: "hand",
+      showOnMap: false,
+      texture: new Bitmap('assets/hand.gif', 500, 500)
+    });
+
+
+    map.addItem({
+      x: 26,
+      y: 18,
+      width: 0.8,
+      height: 1,
+      type: "hand",
+      showOnMap: false,
+      texture: new Bitmap('assets/hand.gif', 500, 500)
+    });
+
+    map.addItem({
+      x: 27,
+      y: 18,
+      width: 0.8,
+      height: 1,
+      type: "hand",
+      showOnMap: false,
+      texture: new Bitmap('assets/hand.gif', 500, 500)
+    });
+
+    map.addItem({
+      x: 28,
+      y: 18,
+      width: 0.8,
+      height: 1,
+      type: "hand",
+      showOnMap: false,
+      texture: new Bitmap('assets/hand.gif', 500, 500)
+    });
+
+    map.addItem({
+      x: 29,
+      y: 18,
+      width: 0.8,
+      height: 1,
+      type: "last-hand",
+      showOnMap: false,
+      texture: new Bitmap('assets/hand.gif', 500, 500)
+    });
+
+    // SPRITES
+
+    map.addItem({
+      x: 2,
+      y: 26.5,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/sprite-0.jpg', 150, 225),
+      type: "sprite",
+      showOnMap: false,
+    });
+
+    map.addItem({
+      x: 2,
+      y: 25.5,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/sprite-1.jpg', 150, 225),
+      type: "sprite",
+      showOnMap: false,
+    });
+
+    map.addItem({
+      x: 2,
+      y: 24.5,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/sprite-2.jpg', 150, 225),
+      type: "sprite",
+      showOnMap: false,
+    });
+
+    map.addItem({
+      x: 2,
+      y: 23.5,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/sprite-3.jpg', 150, 225),
+      type: "sprite",
+      showOnMap: false,
+    });
+
+    map.addItem({
+      x: 2,
+      y: 22.5,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/sprite-4.jpg', 150, 225),
+      type: "sprite",
+      showOnMap: false,
+    });
+
+    map.addItem({
+      x: 2,
+      y: 21.5,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/sprite-5.jpg', 150, 225),
+      type: "sprite",
+      showOnMap: false,
+    });
+
+    map.addItem({
+      x: 2,
+      y: 20.5,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/sprite-6.jpg', 150, 225),
+      type: "sprite",
+      showOnMap: false,
+    });
+
+    map.addItem({
+      x: 2,
+      y: 19.5,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/sprite-7.jpg', 150, 225),
+      type: "sprite",
+      showOnMap: false,
+    });
+
+    map.addItem({
+      x: 2,
+      y: 18.5,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/sprite-8.jpg', 150, 225),
+      type: "sprite",
+      showOnMap: false,
+    });
+
+    map.addItem({
+      x: 2,
+      y: 17.5,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/sprite-9.jpg', 150, 225),
+      type: "sprite",
+      showOnMap: false,
+    });
+
+
+
+    // Messages
+    // map.addItem({
+    //   x: 29.5,
+    //   y: 26,
+    //   width: .8,
+    //   height: 1,
+    //   type: "message",
+    //   texture: new Bitmap('assets/message-welcome.png', 1024, 1024)
+    // });
+
+
+    // Messages
+    map.addItem({
+      x: 28.5,
+      y: 11.5,
+      width: .8,
+      height: 1,
+      type: "message",
+      showOnMap: true,
+      texture: new Bitmap('assets/empathy-is.png', 1024, 1024)
+    });
+
+
+    // Portals
+    map.addItem({
+      x: 16,
+      y: 28.5,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/portal.png', 1024, 1024),
+      type: "portal",
+      showOnMap: true,
+      transition: "city"
+    });
+
+    map.addItem({
+      x: 15.5,
+      y: 16,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/portal.png', 1024, 1024),
+      type: "portal",
+      showOnMap: true,
+      transition: "wood"
+    });
+
+    map.addItem({
+      x: 15.5,
+      y: 1.5,
+      width: 0.8,
+      height: 1,
+      texture: new Bitmap('assets/portal.png', 1024, 1024),
+      type: "portal",
+      showOnMap: true,
+      transition: "jungle"
+    });
+
+    // Tracks
+    // map.addItem({
+    //   x: 23.5,
+    //   y: 23.5,
+    //   width: .8,
+    //   height: 1,
+    //   texture: new Bitmap('assets/item-helix.png', 1024, 1024),
+    //   audio: null,
+    //   type: "track",
+    //   trackName: "Helix",
+    //   showOnMap: true,
+    //   playing: true
+    // });
+
+    // map.addItem({
+    //   x: 8.5,
+    //   y: 8.5,
+    //   width: .8,
+    //   height: 1,
+    //   texture: new Bitmap('assets/item-tva.png', 1024, 1024),
+    //   audio: null,
+    //   type: "track",
+    //   trackName: "Tva Fontainer",
+    //   showOnMap: true,
+    //   playing: false
+    // });
+  }
+
+  // Load the map.
+  mapImage.src = "assets/map.png";
+}
+
+
+
+var countDown = 100;
+var resetCountDown = 100;
+var startScreen = document.getElementById("start");
+var pauseScreen = document.getElementById("pause");
+
+var display = document.getElementById("display");
+
 loop.start(function frame(seconds) {
-  map.update(seconds);
-  player.update(controls.states, map, seconds, messageQueue);
-  messageQueue.update();
-  camera.render(player, map);
+
+  if (window.GAME_STARTED) {
+
+    if (window.controls.present) {
+      window.IDLE_TIMER = 1200;
+    } else {
+      if (window.IDLE_TIMER > 1) {
+        window.IDLE_TIMER--;
+        console.log(window.IDLE_TIMER);
+      } else {
+        window.location.reload();
+      }
+    }
+
+    if (window.GAME_OVER) {
+      display.className = "game-over";
+    }
+
+    if (controls.bothHands) {
+      pauseScreen.className = "game-paused";
+
+      if (controls.doublePinch) {
+        pauseScreen.className = "game-paused resetting";
+
+        if (resetCountDown > 0) {
+          resetCountDown--;
+        } else {
+          window.location.reload()
+        }
+
+      } else {
+        resetCountDown = 100;
+      }
+
+    } else {
+      pauseScreen.className = "";
+
+      map.update(seconds);
+      player.update(controls.states, map, seconds, messageQueue);
+      messageQueue.update();
+      camera.render(player, map);
+    }
+  } else {
+
+    if (controls.present) {
+      // calibrating
+      startScreen.className = "calibrating";
+
+      if(countDown > 0) {
+        countDown--;
+      } else {
+        window.startGame();
+      }
+      console.log(countDown);
+
+    } else {
+      startScreen.className = ""
+      countDown = 100;
+    }
+
+  }
+
 });
 
-messageQueue.pushNotification('You can always learn more empathy', 'system', 500);
-
-// Load the Map
-var mapImage = new Image();
-var mapData = []
-
-mapImage.onload = function() {
-  var decoder = document.createElement('canvas');
-  decoder.width = mapImage.width
-  decoder.height = mapImage.height
-
-  if (decoder.height != decoder.width) {
-    throw new Error('map.png is not square.  Please use a square image.')
-  }
-
-  var context = decoder.getContext('2d');
-  context.drawImage(mapImage, 0, 0);
-  var imageData = context.getImageData(0, 0, decoder.width, decoder.height);
-
-  for (var i = 0; i < imageData.data.length/4; i++) {
-    mapData[i] = imageData.data[(i*4)+3] > 100 ? 1 : 0;
-  }
-
-  for (var i = 0; i < mapData.length; i++) {
-    map.wallGrid[i] = mapData[i]
-  }
-
-  // map.addItem({
-  //   x: 15,
-  //   y: 14,
-  //   width: .35,
-  //   height: .8,
-  //   texture: new Bitmap('assets/item-flashlight.png', 350, 800)
-  // });
-
-
-  // Flash Light
-  // Map
-
-  // Abilities:
-    // Learn Empathy
-    // Disconnect
-
-  // Pickups
-  map.addItem({
-    x: 11.5,
-    y: 25.5,
-    width: 0.8,
-    height: 1,
-    type: "pickup",
-    name: "freakout",
-    texture: new Bitmap('assets/pickup-freakout.png', 1024, 1024)
-  });
-
-  map.addItem({
-    x: 11.5,
-    y: 11.5,
-    width: 0.8,
-    height: 1,
-    type: "pickup",
-    name: "lucid",
-    texture: new Bitmap('assets/pickup-lucid.png', 1024, 1024)
-  });
-
-  map.addItem({
-    x: 3,
-    y: 30.5,
-    width: 0.8,
-    height: 1,
-    type: "pickup",
-    name: "flashlight",
-    texture: new Bitmap('assets/pickup-flashlight.png', 1024, 1024)
-  });
-
-  // Art
-  map.addItem({
-    x: 3,
-    y: 28,
-    width: 0.8,
-    height: 1,
-    type: "art",
-    texture: new Bitmap('assets/art-guru.png', 1024, 1024)
-  });
-
-  // Messages
-  map.addItem({
-    x: 29.5,
-    y: 26,
-    width: .8,
-    height: 1,
-    type: "message",
-    texture: new Bitmap('assets/message-welcome.png', 1024, 1024)
-  });
-
-
-  // Portals
-  map.addItem({
-    x: 16,
-    y: 30.5,
-    width: 0.8,
-    height: 1,
-    texture: new Bitmap('assets/portal.png', 1024, 1024),
-    type: "portal",
-    transition: "city"
-  });
-
-  map.addItem({
-    x: 15.5,
-    y: 16,
-    width: 0.8,
-    height: 1,
-    texture: new Bitmap('assets/portal.png', 1024, 1024),
-    type: "portal",
-    transition: "wood"
-  });
-
-  // Tracks
-  map.addItem({
-    x: 23.5,
-    y: 23.5,
-    width: .8,
-    height: 1,
-    texture: new Bitmap('assets/item-helix.png', 1024, 1024),
-    audio: null,
-    type: "track",
-    trackName: "Helix",
-    playing: true
-  });
-
-  map.addItem({
-    x: 8.5,
-    y: 8.5,
-    width: .8,
-    height: 1,
-    texture: new Bitmap('assets/item-tva.png', 1024, 1024),
-    audio: null,
-    type: "track",
-    trackName: "Tva Fontainer",
-    playing: false
-  });
-
-  eventBus.trigger('gameLoaded');
-}
-
-
-// Add Range Map
-Number.prototype.rangeMap = function ( in_min , in_max , out_min , out_max ) {
-  number = ( this - in_min ) * ( out_max - out_min ) / ( in_max - in_min ) + out_min;
-  if(number < 0){
-    number = 0
-  }
-  return number;
-}
-
-
-var gameLoaded = function() {
-  console.log('gameHasLoaded');
-}
-
-eventBus.on('gameLoaded', window, gameLoaded);
-
-// Load the map.
-mapImage.src = "assets/map.png";
-
-
-
-
-
-
+// https://soundcloud.com/esaops
 
 // http://www.html5rocks.com/en/tutorials/webaudio/games/#toc-3d
 
@@ -647,8 +1004,12 @@ SC.stream("/tracks/83743704", function(sound){
 
 
 
+// Begin LEAP Code
+require('./leap');
 
-},{"./bitmap":1,"./camera":2,"./controls":3,"./event-bus":4,"./gameloop":6,"./map":8,"./message-queue":9,"./player":10,"./utils":11}],6:[function(require,module,exports){
+
+
+},{"./bitmap":1,"./camera":2,"./controls":3,"./event-bus":4,"./gameloop":6,"./leap":8,"./map":9,"./message-queue":10,"./player":11,"./utils":12}],6:[function(require,module,exports){
   var GameLoop = function() {
     "use strict";
 
@@ -701,6 +1062,133 @@ SC.stream("/tracks/83743704", function(sound){
 
   module.exports = Item;
 },{}],8:[function(require,module,exports){
+window.LEAPscene = null
+window.LEAPrenderer = null
+window.LEAPcamera = null
+
+var initLEAPScene = function(element) {
+  // Scene
+  window.LEAPscene = new THREE.Scene();
+
+  // Renderer
+  window.LEAPrenderer = new THREE.WebGLRenderer({alpha: true});
+  // LEAPrenderer.setClearColor(0x000000, 1);
+  LEAPrenderer.setSize(window.innerWidth, window.innerHeight);
+
+  // Add to DOM
+  element.appendChild(LEAPrenderer.domElement);
+
+  // Lighting
+  LEAPscene.add(new THREE.AmbientLight(0x888888));
+  pointLight = new THREE.PointLight(0xFFffff);
+  pointLight.position = new THREE.Vector3(-20, 10, 0);
+  pointLight.lookAt(new THREE.Vector3(0, 0, 0));
+  LEAPscene.add(pointLight);
+
+  // Camera
+  window.LEAPcamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+  LEAPcamera.position.fromArray([0,800,400]);
+  LEAPcamera.lookAt(new THREE.Vector3(0, 0, 0));
+
+  // Add camera to Scene
+  LEAPscene.add(LEAPcamera);
+
+  // Render Scene
+  LEAPrenderer.render(LEAPscene, LEAPcamera);
+}
+
+initLEAPScene(document.body);
+
+// LEAP Controller
+
+var LEAPcontroller = new Leap.Controller();
+
+LEAPcontroller.use('handHold')
+  .use('transform', {
+    position: new THREE.Vector3(0,0,0)
+  })
+  .use('handEntry')
+  .use('screenPosition')
+  .use('riggedHand', {
+    parent: LEAPscene,
+    renderer: LEAPrenderer,
+    camera: LEAPcamera,
+    scale: 1,
+    positionScale: 1,
+    offset: new THREE.Vector3(0, 0, 300),
+
+    renderFn: function() { LEAPrenderer.render(LEAPscene, LEAPcamera); },
+
+    materialOptions: {
+      // Drug mode
+      wireframe: false
+    },
+
+    boneColors: function(boneMesh, leapHand) {
+      if ((boneMesh.name.indexOf('Finger_0') == 0) || (boneMesh.name.indexOf('Finger_1') == 0)) {
+        return {
+          hue: 0.6,
+          saturation: leapHand.pinchStrength
+        }
+      }
+    },
+    checkWebGL: true
+  })
+  .connect()
+
+
+LEAPcontroller.on('riggedHand.meshAdded', function(handMesh, leapHand) {
+  handMesh.material.opacity = 1;
+});
+
+LEAPcontroller.on('frame', function(frame) {
+
+  var handState = {};
+  handState.present = false;
+
+  handState.bothHands = false;
+  handState.doublePinch = false;
+
+  if (frame.hands.length > 1) {
+    handState.bothHands = true;
+
+    if ((frame.hands[0].pinchStrength > 0.5) && (frame.hands[1].pinchStrength > 0.5)) {
+      handState.doublePinch = true;
+    }
+
+  } else if (frame.hands.length > 0) {
+
+    handState.present = true;
+
+    var hand = frame.hands[0];
+
+    // Grab Strength
+    var grabStrength = hand.grabStrength
+    if (grabStrength > 0.8) {
+      handState.fist = true;
+    } else {
+      handState.fist = false;
+    }
+
+    handState.grip = hand.grabStrength;
+
+    handState.angle = hand.yaw() * 180 / Math.PI;
+    handState.x = hand.palmPosition[0];
+    handState.roll = hand.roll() * 180 / Math.PI;
+    handState.pitch = hand.pitch() * 180 / Math.PI;
+
+  }
+
+  var event = new CustomEvent('handStream', {'detail': handState});
+  document.dispatchEvent(event);
+
+});
+
+
+
+
+
+},{}],9:[function(require,module,exports){
   Bitmap = require('./bitmap');
   Item = require('./item');
 
@@ -713,17 +1201,16 @@ SC.stream("/tracks/83743704", function(sound){
 
       this.whiteSkybox = new Bitmap('assets/skybox-white.jpg', 2844, 914);
       this.skybox0 = new Bitmap('assets/skybox.jpg', 2844, 914);
-      this.skybox1 = new Bitmap('assets/skybox-tiles.jpg', 2844, 914);
+      this.skybox1 = new Bitmap('assets/skybox-jungle.jpg', 2844, 914);
       this.skybox2 = new Bitmap('assets/skybox-city.jpg', 2844, 914);
       this.skybox3 = new Bitmap('assets/skybox.jpg', 2844, 914);
 
       // Ideas
 
       // PNG Walls look cool
-      // Neon Everything
 
       this.wallTexture0 = new Bitmap('assets/wall_texture_wood.jpg', 1024, 1024);
-      this.wallTexture1 = new Bitmap('assets/wall_texture_tile.jpg', 1024, 1024);
+      this.wallTexture1 = new Bitmap('assets/wall_texture_jungle.png', 1024, 1024);
       this.wallTexture2 = new Bitmap('assets/wall_texture_brick.jpg', 1024, 1024);
       this.wallTexture3 = new Bitmap('assets/wall_texture_stone.jpg', 1024, 1024);
 
@@ -871,7 +1358,7 @@ SC.stream("/tracks/83743704", function(sound){
   }();
 
   module.exports = Map;
-},{"./bitmap":1,"./item":7}],9:[function(require,module,exports){
+},{"./bitmap":1,"./item":7}],10:[function(require,module,exports){
   var MessageQueue = function() {
     "use strict";
 
@@ -933,7 +1420,7 @@ SC.stream("/tracks/83743704", function(sound){
   }();
 
   module.exports = MessageQueue;
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
   Utils = require('./utils');
 
   var Player = function() {
@@ -972,9 +1459,9 @@ SC.stream("/tracks/83743704", function(sound){
 
       update: {
         value: function(controls, map, seconds, messageQueue) {
-          if (controls.left) this.rotate(-Math.PI * seconds);
-          if (controls.right) this.rotate(Math.PI * seconds);
-          if (controls.forward) this.walk(3 * seconds, map);
+          if (controls.left) this.rotate(-Math.PI * seconds * controls.left);
+          if (controls.right) this.rotate(Math.PI * seconds * controls.right);
+          if (controls.forward) this.walk(3 * seconds * controls.forward, map);
           if (controls.backward) this.walk(-3 * seconds, map);
 
           if(Utils.quadrant(this.x, this.y, map.size) == 2) {
@@ -982,7 +1469,6 @@ SC.stream("/tracks/83743704", function(sound){
           }else {
             window.RAIN_ENABLED = false
           }
-
 
           for (var i = 0; i < map.items.length; i++) {
             var item = map.items[i];
@@ -1015,18 +1501,24 @@ SC.stream("/tracks/83743704", function(sound){
 
 
             // ON COLISION
-            if(distanceFromPlayer < 0.2) {
+            if(distanceFromPlayer < 0.8) {
               // Portals
               if (item.type == "portal") {
                 switch(item.transition) {
                   case "city":
-                    if(map.addWallAt(17, 30)){
-                      messageQueue.pushNotification("It is raining in the city", 'system', 300);
+                    if(map.addWallAt(17, 28)){
+                      messageQueue.pushNotification("It is raining in the city;", 'system', 300);
                     }
                     break;
                   case "wood":
-                    console.log("wood!")
+                    if(map.addWallAt(15, 17)){
+                      messageQueue.pushNotification("The sky here is relaxing;", 'system', 300);
+                    }
                     break;
+                  case "jungle":
+                    if(map.addWallAt(13, 1)){
+                      messageQueue.pushNotification("You need to concentrate now;", 'system', 300);
+                    }
                 }
               }
 
@@ -1036,16 +1528,23 @@ SC.stream("/tracks/83743704", function(sound){
                   case "flashlight":
                     this.hasFlashlight = true;
                     map.removeItem(i);
-                    messageQueue.pushNotification("You have found a flashlight;", 'system', 300);
+                    if(map.addWallAt(20, 21)){
+                      messageQueue.pushNotification("You have found a flashlight;", 'system', 300);
+                    }
                     break;
                   case "map":
-                    console.log("MAP!")
+                    window.MAP_ENABLED = true;
+                    map.removeItem(i);
+                    if(map.addWallAt(3, 11)){
+                      messageQueue.pushNotification("You have found a map;", 'system', 300);
+                    }
                     break;
                   case "freakout":
                     window.FREAKOUT_ENABLED = true;
                     messageQueue.pushNotification("You are feeling nautious.", 'system', 300);
 
                     map.removeItem(i);
+                    map.addWallAt(5, 26)
 
                     window.setTimeout(function(){
                       messageQueue.pushNotification("You are feeling better now.", 'system', 300);
@@ -1054,7 +1553,7 @@ SC.stream("/tracks/83743704", function(sound){
                     break;
 
                   case "lucid":
-                    window.WALL_TEXTURE_ENABLED = false;
+                    // window.WALL_TEXTURE_ENABLED = false;
                     window.WHITE_SKYBOX_ENABLED = true;
 
                     messageQueue.pushNotification("Your thoughts are very clear.", 'system', 300);
@@ -1063,7 +1562,7 @@ SC.stream("/tracks/83743704", function(sound){
 
                     window.setTimeout(function(){
                       messageQueue.pushNotification("Your senses have dulled.", 'system', 300);
-                      window.WALL_TEXTURE_ENABLED = true;
+                      // window.WALL_TEXTURE_ENABLED = true;
                       window.WHITE_SKYBOX_ENABLED = false;
                     }, 15000)
                     break;
@@ -1073,7 +1572,27 @@ SC.stream("/tracks/83743704", function(sound){
               // Messages
               if (item.type == "message") {
                 map.removeItem(i);
+                map.addWallAt(28,13)
+                window.GAME_OVER = true;
               }
+
+              if (item.type == "hand") {
+                map.removeItem(i);
+              }
+
+              if (item.type == "last-hand") {
+                map.removeItem(i);
+                map.removeWallAt(17, 22)
+                map.removeWallAt(18, 22)
+                map.addWallAt(19,21)
+                messageQueue.pushNotification('You came here for no reason;', 'system', 300);
+                messageQueue.pushNotification('This was a waste of your time;', 'system', 300);
+              }
+
+              if (item.type == "sprite") {
+                map.removeItem(i);
+              }
+
 
               // Tracks
               if (item.type == "track") {
@@ -1105,7 +1624,7 @@ SC.stream("/tracks/83743704", function(sound){
   }();
 
   module.exports = Player;
-},{"./utils":11}],11:[function(require,module,exports){
+},{"./utils":12}],12:[function(require,module,exports){
 module.exports = {
   CIRCLE: Math.PI * 2,
   MOBILE: /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent),

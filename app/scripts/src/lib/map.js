@@ -8,7 +8,7 @@ class Map {
 
     this.whiteSkybox = new Bitmap('assets/skybox-white.jpg', 2844, 914);
     this.skybox0 = new Bitmap('assets/skybox.jpg', 2844, 914);
-    this.skybox1 = new Bitmap('assets/skybox-tiles.jpg', 2844, 914);
+    this.skybox1 = new Bitmap('assets/skybox-jungle.jpg', 2844, 914);
     this.skybox2 = new Bitmap('assets/skybox-city.jpg', 2844, 914);
     this.skybox3 = new Bitmap('assets/skybox.jpg', 2844, 914);
 
@@ -17,7 +17,7 @@ class Map {
     // PNG Walls look cool
 
     this.wallTexture0 = new Bitmap('assets/wall_texture_wood.jpg', 1024, 1024);
-    this.wallTexture1 = new Bitmap('assets/wall_texture_tile.jpg', 1024, 1024);
+    this.wallTexture1 = new Bitmap('assets/wall_texture_jungle.png', 1024, 1024);
     this.wallTexture2 = new Bitmap('assets/wall_texture_brick.jpg', 1024, 1024);
     this.wallTexture3 = new Bitmap('assets/wall_texture_stone.jpg', 1024, 1024);
 

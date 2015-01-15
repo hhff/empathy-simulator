@@ -4,3 +4,120 @@
 @import 'general/_fonts';
 
 @import 'components/system-messages';
+
+$short-duration: 200ms;
+$mid-duration: 400ms;
+$long-duration: 800ms;
+$very-long-duration: 3000ms;
+
+
+canvas {
+  position: fixed;
+  z-index: 10;
+
+  &#display {
+    z-index: 8;
+  }
+}
+
+.vertical-center {
+  position: relative;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+#display {
+  @include transition(opacity $very-long-duration ease-in-out $very-long-duration);
+
+  opacity: 0;
+
+  &.game-started {
+    opacity: 1;
+  }
+
+  &.game-over {
+    @include transition(opacity $very-long-duration ease-in-out $very-long-duration*3);
+    opacity: 0;
+  }
+}
+
+
+#start, #pause {
+  position: fixed;
+  z-index: 9;
+  width: 100%;
+  height: 100%;
+  background-color: whitesmoke;
+
+  .contents {
+    text-align: center;
+
+    h1 {
+      @extend %lydianmtstd;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      font-size: 80px;
+      color: gainsboro;
+    }
+
+    h2 {
+      @include transition(opacity $mid-duration ease-in-out);
+      @extend %lydianmtstd;
+      letter-spacing: 4px;
+      font-size: 40px;
+      margin-bottom: 50px;
+      color: black;
+      opacity: 0;
+    }
+
+    h3 {
+      @extend %lydianmtstd;
+      letter-spacing: 4px;
+      font-size: 20px;
+      margin-bottom: 50px;
+      color: black;
+    }
+
+    .glyph {
+      width: 150px;
+      margin-top: 200px;
+      margin-bottom: 50px;
+    }
+  }
+}
+
+#start {
+  @include transition(opacity $very-long-duration ease-in-out);
+
+  opacity: 1;
+
+  &.calibrating {
+    .contents {
+      h2 {
+        opacity: 1;
+      }
+    }
+  }
+
+  &.game-started {
+    opacity: 0;
+  }
+}
+
+#pause {
+  @include transition(opacity $mid-duration ease-in-out);
+
+  opacity: 0;
+
+  &.resetting {
+    .contents {
+      h2 {
+        opacity: 1;
+      }
+    }
+  }
+
+  &.game-paused {
+    opacity: 1;
+  }
+}

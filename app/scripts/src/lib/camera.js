@@ -10,13 +10,13 @@ class Camera {
     this.focalLength = focalLength || 0.8;
     this.fov = Math.PI * .4;
     this.range = Utils.MOBILE ? 8 : 14;
-    this.lightRange = 1.75;
-    this.maxLightRange = 8;
+    this.lightRange = 2.8;
+    this.maxLightRange = 6;
     this.scale = (this.width + this.height) / 1200;
   }
 
   render(player, map) {
-    if(player.hasFlashlight && this.lightRange != 8) {
+    if(player.hasFlashlight && this.lightRange < 6.8) {
       this.lightRange += 0.2;
     }
 
@@ -106,16 +106,19 @@ class Camera {
     var sprite;
     var spriteIsInColumn;
     var textureX;
+    var playerQuadrant = Utils.quadrant(player.x, player.y, map.size);
 
     for(var i = 0; i < sprites.length; i++){
       sprite = sprites[i];
-      spriteIsInColumn =  left > sprite.render.cameraXOffset - ( sprite.render.width / 2 ) && left < sprite.render.cameraXOffset + ( sprite.render.width / 2 );
+      var spriteQuadrant = Utils.quadrant(sprite.x, sprite.y, map.size);
 
-      if(spriteIsInColumn) {
+      spriteIsInColumn = left > sprite.render.cameraXOffset - ( sprite.render.width / 2 ) && left < sprite.render.cameraXOffset + ( sprite.render.width / 2 );
+      var spriteIsInPlayerQuadrant = playerQuadrant == spriteQuadrant;
 
+      if(spriteIsInColumn && spriteIsInPlayerQuadrant) {
         textureX = Math.floor( sprite.texture.width / sprite.render.numColumns * ( column - sprite.render.firstColumn ) );
         ctx.fillStyle = 'black';
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = sprite.distanceFromPlayer.rangeMap( 4, 1, 0, 1);
 
         var brightness = Math.max(sprite.distanceFromPlayer / this.lightRange - map.light, 0) * 100;
         sprite.texture.image.style.webkitFilter = 'brightness(' + brightness + '%)';
@@ -169,9 +172,6 @@ class Camera {
     for (var s = ray.length - 1; s >= 0; s--) {
       var step = ray[s];
 
-      var rainDrops = Math.pow(Math.random(), 3) * s;
-      var rain = (rainDrops > 0) && this.project(0.1, angle, step.distance);
-
       if (s === hit) {
         var textureX = Math.floor(texture.width * step.offset);
         var wall = this.project(step.height, angle, step.distance);
@@ -190,6 +190,8 @@ class Camera {
       ctx.fillStyle = '#ffffff';
       ctx.globalAlpha = 0.15;
 
+      var rainDrops = Math.pow(Math.random(), 3) * s;
+      var rain = (rainDrops > 0) && this.project(0.1, angle, step.distance);
       if(window.RAIN_ENABLED) {
         while (--rainDrops > 0) ctx.fillRect(left, Math.random() * rain.top, 1, rain.height);
       }
@@ -240,7 +242,7 @@ class Camera {
     // Draw Items on Map
     ctx.save();
     for (var i = 0; i < map.items.length; i++){
-      if(map.items[i]){
+      if(map.items[i] && map.items[i].showOnMap){
         ctx.fillStyle = map.items[i].color || 'blue';
         ctx.globalAlpha = .8;
         ctx.fillRect(x + (blockWidth * map.items[i].x) + blockWidth * .25, y + (blockHeight * map.items[i].y) + blockWidth * .25, blockWidth * .5, blockHeight * .5);

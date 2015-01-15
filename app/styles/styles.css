@@ -49,16 +49,105 @@ b, i {
   src: url("../fonts/lydian/lydianmtstd.eot");
   src: url("../fonts/lydian/lydianmtstd.eot?#iefix") format("embedded-opentype"), url("../fonts/lydian/lydianmtstd.woff") format("woff"), url("../fonts/lydian/lydianmtstd.ttf") format("truetype"), url("../fonts/lydian/lydianmtstd.svg#lydianmtstd") format("svg"); }
 
-#system-messages div {
+#system-messages div, #start .contents h1, #pause .contents h1, #start .contents h2, #pause .contents h2, #start .contents h3, #pause .contents h3 {
   font-family: lydianmtstd;
   font-weight: normal; }
 
 #system-messages {
   position: fixed;
-  padding: 50px; }
+  z-index: 11;
+  width: 100%;
+  text-align: center;
+  top: 50%;
+  color: white; }
   #system-messages div {
-    color: black;
-    font-size: 14px;
+    color: white;
+    font-size: 30px;
     letter-spacing: 4px;
-    text-transform: uppercase;
-    background-color: lavender; }
+    text-transform: uppercase; }
+
+canvas {
+  position: fixed;
+  z-index: 10; }
+  canvas#display {
+    z-index: 8; }
+
+.vertical-center {
+  position: relative;
+  top: 50%;
+  transform: translateY(-50%); }
+
+#display {
+  -webkit-transition: opacity 3000ms ease-in-out 3000ms;
+  -moz-transition: opacity 3000ms ease-in-out 3000ms;
+  -ms-transition: opacity 3000ms ease-in-out 3000ms;
+  -o-transition: opacity 3000ms ease-in-out 3000ms;
+  transition: opacity 3000ms ease-in-out 3000ms;
+  opacity: 0; }
+  #display.game-started {
+    opacity: 1; }
+  #display.game-over {
+    -webkit-transition: opacity 3000ms ease-in-out 9000ms;
+    -moz-transition: opacity 3000ms ease-in-out 9000ms;
+    -ms-transition: opacity 3000ms ease-in-out 9000ms;
+    -o-transition: opacity 3000ms ease-in-out 9000ms;
+    transition: opacity 3000ms ease-in-out 9000ms;
+    opacity: 0; }
+
+#start, #pause {
+  position: fixed;
+  z-index: 9;
+  width: 100%;
+  height: 100%;
+  background-color: whitesmoke; }
+  #start .contents, #pause .contents {
+    text-align: center; }
+    #start .contents h1, #pause .contents h1 {
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      font-size: 80px;
+      color: gainsboro; }
+    #start .contents h2, #pause .contents h2 {
+      -webkit-transition: opacity 400ms ease-in-out;
+      -moz-transition: opacity 400ms ease-in-out;
+      -ms-transition: opacity 400ms ease-in-out;
+      -o-transition: opacity 400ms ease-in-out;
+      transition: opacity 400ms ease-in-out;
+      letter-spacing: 4px;
+      font-size: 40px;
+      margin-bottom: 50px;
+      color: black;
+      opacity: 0; }
+    #start .contents h3, #pause .contents h3 {
+      letter-spacing: 4px;
+      font-size: 20px;
+      margin-bottom: 50px;
+      color: black; }
+    #start .contents .glyph, #pause .contents .glyph {
+      width: 150px;
+      margin-top: 200px;
+      margin-bottom: 50px; }
+
+#start {
+  -webkit-transition: opacity 3000ms ease-in-out;
+  -moz-transition: opacity 3000ms ease-in-out;
+  -ms-transition: opacity 3000ms ease-in-out;
+  -o-transition: opacity 3000ms ease-in-out;
+  transition: opacity 3000ms ease-in-out;
+  opacity: 1; }
+  #start.calibrating .contents h2 {
+    opacity: 1; }
+  #start.game-started {
+    opacity: 0; }
+
+#pause {
+  -webkit-transition: opacity 400ms ease-in-out;
+  -moz-transition: opacity 400ms ease-in-out;
+  -ms-transition: opacity 400ms ease-in-out;
+  -o-transition: opacity 400ms ease-in-out;
+  transition: opacity 400ms ease-in-out;
+  opacity: 0; }
+  #pause.resetting .contents h2 {
+    opacity: 1; }
+  #pause.game-paused {
+    opacity: 1; }
